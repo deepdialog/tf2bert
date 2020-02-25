@@ -29,14 +29,17 @@ class Projection(tf.keras.layers.Layer):
                 stddev=self.initializer_range),
             name="dense")
         self.dropout = tf.keras.layers.Dropout(rate=self.hidden_dropout_prob)
-        self.layer_norm = tf.keras.layers.LayerNormalization(name="LayerNorm")
+        # epsilon is important be same with tf.contrib.layers.layer_norm
+        # https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/contrib/layers/python/layers/layers.py
+        self.layer_norm = tf.keras.layers.LayerNormalization(
+            epsilon=1e-12, name="LayerNorm")
 
         super(Projection, self).build(input_shape)
 
-    def call(self, inputs, mask=None, **kwargs):
+    def call(self, inputs, mask=None, training=None, **kwargs):
         output, residual = inputs
         output = self.dense(output)
-        output = self.dropout(output)
+        output = self.dropout(output, training=training)
         output = self.layer_norm(tf.add(output, residual))
         return output
 
@@ -74,11 +77,12 @@ class TransformerSelfAttention(tf.keras.layers.Layer):
 
         super(TransformerSelfAttention, self).build(input_shape)
 
-    def call(self, inputs, mask=None):
+    def call(self, inputs, mask=None, training=None):
         x = inputs
-        attention_head = self.attention_layer(x, mask=mask)
+        attention_head = self.attention_layer(x, mask=mask, training=training)
         x = self.attention_projector([attention_head, x],
-                                     mask=mask)
+                                     mask=mask,
+                                     training=training)
 
         return x
 
@@ -128,16 +132,19 @@ class SingleTransformerEncoder(tf.keras.layers.Layer):
 
         super(SingleTransformerEncoder, self).build(input_shape)
 
-    def call(self, inputs, mask=None):
+    def call(self, inputs, mask=None, training=None):
         layer_input = inputs
 
         attention_output = self.self_attention_layer(layer_input,
-                                                     mask=mask)
+                                                     mask=mask,
+                                                     training=training)
         # intermediate
         intermediate_output = self.intermediate_layer(attention_output)
         # output
         layer_output = self.output_projector(
-            [intermediate_output, attention_output], mask=mask)
+            [intermediate_output, attention_output],
+            mask=mask,
+            training=training)
 
         return layer_output
 
@@ -159,7 +166,6 @@ class TransformerEncoder(tf.keras.layers.Layer):
 
     def build(self, input_shape):
         self.input_spec = tf.keras.layers.InputSpec(shape=input_shape)
-
         # create all transformer encoder sub-layers
         # BERT
         for layer_ndx in range(self.num_hidden_layers):
@@ -178,17 +184,10 @@ class TransformerEncoder(tf.keras.layers.Layer):
         super(TransformerEncoder, self).build(input_shape)
 
     def call(self, inputs, mask=None, training=None):
-        layer_output = inputs
-
-        layer_outputs = []
+        x = inputs
         for layer_ndx in range(self.num_hidden_layers):
-            encoder_layer = self.encoder_layers[
-                layer_ndx] if self.encoder_layers else self.shared_layer
-            layer_input = layer_output
-
-            layer_output = encoder_layer(layer_input,
-                                         mask=mask,
-                                         training=training)
-            layer_outputs.append(layer_output)
-
-        return layer_output
+            encoder_layer = self.encoder_layers[layer_ndx]
+            x = encoder_layer(x,
+                              mask=mask,
+                              training=training)
+        return x

@@ -73,7 +73,10 @@ class Bert(tf.keras.Model):
             initializer_range=self.initializer_range,
             hidden_dropout_prob=self.hidden_dropout_prob,
             attention_probs_dropout_prob=self.attention_probs_dropout_prob)
-        self.pooler = tf.keras.layers.Dense(self.pooler_fc_size, name='pooler')
+        self.pooler = tf.keras.layers.Dense(
+            self.pooler_fc_size,
+            activation='tanh',
+            name='pooler')
         super(Bert, self).build(input_shape)
 
     def call(self, inputs, pooler=False, training=None):

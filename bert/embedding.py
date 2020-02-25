@@ -32,28 +32,31 @@ class BertEmbedding(tf.keras.layers.Layer):
             input_ids_shape = input_shape
             self.input_spec = tf.keras.layers.InputSpec(shape=input_ids_shape)
 
-        self.word_embeddings_layer = tf.keras.layers.Embedding(
-            input_dim=self.vocab_size,
-            output_dim=self.hidden_size,
-            mask_zero=True,
-            name="word_embeddings")
+        self.word_embeddings = self.add_weight(
+            name="word_embeddings",
+            dtype=tf.keras.backend.floatx(),
+            shape=[self.vocab_size, self.hidden_size],
+            initializer=tf.keras.initializers.TruncatedNormal(
+                stddev=self.initializer_range))
 
-        self.token_type_embeddings_layer = tf.keras.layers.Embedding(
-            input_dim=self.type_vocab_size,
-            output_dim=self.hidden_size,
-            mask_zero=False,
-            name="token_type_embeddings")
+        self.token_type_embeddings = self.add_weight(
+            name="token_type_embeddings",
+            dtype=tf.keras.backend.floatx(),
+            shape=[self.type_vocab_size, self.hidden_size],
+            initializer=tf.keras.initializers.TruncatedNormal(
+                stddev=self.initializer_range))
 
-        # self.position_embeddings_layer = PositionEmbedding(
-        #     name="position_embeddings", hidden_size=self.hidden_size)
         self.position_embeddings = self.add_weight(
-            name="position_embeddings_layer",
+            name="position_embeddings",
             dtype=tf.keras.backend.floatx(),
             shape=[self.max_position_embeddings, self.hidden_size],
             initializer=tf.keras.initializers.TruncatedNormal(
                 stddev=self.initializer_range))
 
+        # epsilon is important be same with tf.contrib.layers.layer_norm
+        # https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/contrib/layers/python/layers/layers.py
         self.layer_norm_layer = tf.keras.layers.LayerNormalization(
+            epsilon=1e-12,
             name="LayerNorm")
         self.dropout_layer = tf.keras.layers.Dropout(
             rate=self.hidden_dropout_prob)
@@ -63,17 +66,22 @@ class BertEmbedding(tf.keras.layers.Layer):
     def call(self, inputs, mask=None, training=None):
         input_ids, token_type_ids = inputs
         input_ids = tf.cast(input_ids, dtype=tf.int32)
-        embedding_output = self.word_embeddings_layer(input_ids)
+
+        embedding_output = tf.nn.embedding_lookup(
+            self.word_embeddings, input_ids)
 
         token_type_ids = tf.cast(token_type_ids, dtype=tf.int32)
-        embedding_output += self.token_type_embeddings_layer(token_type_ids)
+        embedding_output += tf.nn.embedding_lookup(
+            self.token_type_embeddings, token_type_ids)
 
         shape = tf.shape(input_ids)
-        embedding_output = tf.concat([
-            embedding_output[:, :self.max_position_embeddings, :] +
-            tf.expand_dims(self.position_embeddings[:shape[1]], 0),
-            embedding_output[:, self.max_position_embeddings:, :]
-        ], axis=1)
+        # embedding_output = tf.concat([
+        #     embedding_output[:, :self.max_position_embeddings, :] +
+        #     tf.expand_dims(self.position_embeddings[:shape[1]], 0),
+        #     embedding_output[:, self.max_position_embeddings:, :]
+        # ], axis=1)
+        embedding_output += tf.expand_dims(
+            self.position_embeddings[:shape[1]], 0)
 
         embedding_output = self.layer_norm_layer(embedding_output)
         embedding_output = self.dropout_layer(embedding_output,
