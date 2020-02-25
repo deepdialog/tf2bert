@@ -29,20 +29,28 @@ def build_model(params):
     model = tf.keras.Model(inputs=[input_ids, input_ids_type],
                            outputs=[pred_out, pool_out])
 
+    def loss(one_hot_labels, log_probs):
+        per_example_loss = -tf.reduce_sum(log_probs * one_hot_labels,
+                                          axis=[-1])
+        return tf.reduce_mean(per_example_loss)
+
+    def sparse_loss(labels, log_probs):
+        labels = tf.cast(labels, tf.int32)
+        one_hot_labels = tf.one_hot(labels, tf.shape(log_probs)[-1])
+        return loss(one_hot_labels, log_probs)
+
     schedule = tf.optimizers.schedules.PolynomialDecay(
         initial_learning_rate=1e-4,
         end_learning_rate=1e-6,
-        decay_steps=1000000
-    )
-    model.compile(loss='sparse_categorical_crossentropy',
+        decay_steps=25000)
+    model.compile(loss=sparse_loss,
                   optimizer=tfa.optimizers.AdamW(
                       weight_decay=1e-2,
                       learning_rate=schedule,
                       beta_1=0.9,
                       beta_2=0.999,
                       epsilon=1e-06,
-                  ),
-                  metrics=['acc'])
+                  ))
     return model, bert_model
 
 

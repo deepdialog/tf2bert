@@ -13,5 +13,5 @@ class Pool(tf.keras.Model):
     def call(self, inputs):
         x = inputs
         x = self.dense(x)
-        x = tf.nn.softmax(x)
+        x = tf.nn.log_softmax(x)
         return x
