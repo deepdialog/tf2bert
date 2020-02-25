@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tensorflow_addons as tfa
 from bert.bert import Bert
 from bert.pred import Pred
 from bert.pool import Pool
@@ -27,8 +28,20 @@ def build_model(params):
 
     model = tf.keras.Model(inputs=[input_ids, input_ids_type],
                            outputs=[pred_out, pool_out])
+
+    schedule = tf.optimizers.schedules.PolynomialDecay(
+        initial_learning_rate=1e-4,
+        end_learning_rate=1e-6,
+        decay_steps=1000000
+    )
     model.compile(loss='sparse_categorical_crossentropy',
-                  optimizer=tf.keras.optimizers.Adam(),
+                  optimizer=tfa.optimizers.AdamW(
+                      weight_decay=1e-2,
+                      learning_rate=schedule,
+                      beta_1=0.9,
+                      beta_2=0.999,
+                      epsilon=1e-06,
+                  ),
                   metrics=['acc'])
     return model, bert_model
 
