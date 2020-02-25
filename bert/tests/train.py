@@ -19,8 +19,12 @@ def build_model(params):
     t = input_ids_type
     x, p = bert_model([x, t])
     pool_out = Pool(type_vocab_size=params.get('type_vocab_size'))(p)
-    emb = tf.identity(bert_layer.embedding.word_embeddings_layer.weights[0])
-    pred_out = Pred(params.get('hidden_size'))([x, emb])
+    pool_out = tf.keras.layers.Activation('linear', name='sen')(pool_out)
+
+    pred_out = Pred(
+        params.get('hidden_size'))([x, bert_layer.embedding.word_embeddings])
+    pred_out = tf.keras.layers.Activation('linear', name='mlm')(pred_out)
+
     model = tf.keras.Model(inputs=[input_ids, input_ids_type],
                            outputs=[pred_out, pool_out])
     model.compile(loss='sparse_categorical_crossentropy',
