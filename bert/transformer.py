@@ -33,10 +33,10 @@ class Projection(tf.keras.layers.Layer):
 
         super(Projection, self).build(input_shape)
 
-    def call(self, inputs, mask=None, training=None, **kwargs):
+    def call(self, inputs, mask=None, **kwargs):
         output, residual = inputs
         output = self.dense(output)
-        output = self.dropout(output, training=training)
+        output = self.dropout(output)
         output = self.layer_norm(tf.add(output, residual))
         return output
 
@@ -74,12 +74,11 @@ class TransformerSelfAttention(tf.keras.layers.Layer):
 
         super(TransformerSelfAttention, self).build(input_shape)
 
-    def call(self, inputs, mask=None, training=None):
+    def call(self, inputs, mask=None):
         x = inputs
-        attention_head = self.attention_layer(x, mask=mask, training=training)
+        attention_head = self.attention_layer(x, mask=mask)
         x = self.attention_projector([attention_head, x],
-                                     mask=mask,
-                                     training=training)
+                                     mask=mask)
 
         return x
 
@@ -129,12 +128,11 @@ class SingleTransformerEncoder(tf.keras.layers.Layer):
 
         super(SingleTransformerEncoder, self).build(input_shape)
 
-    def call(self, inputs, mask=None, training=None):
+    def call(self, inputs, mask=None):
         layer_input = inputs
 
         attention_output = self.self_attention_layer(layer_input,
-                                                     mask=mask,
-                                                     training=training)
+                                                     mask=mask)
         # intermediate
         intermediate_output = self.intermediate_layer(attention_output)
         # output

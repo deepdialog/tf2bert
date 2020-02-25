@@ -13,7 +13,7 @@ def build_model():
 
     x = input_ids
     t = input_ids_type
-    x = bert([x, t], pooler=True)
+    _, x = bert([x, t], pooler=True)
     x = pool(x)
     model = tf.keras.Model(inputs=[input_ids, input_ids_type], outputs=x)
     model.compile(
@@ -37,7 +37,7 @@ def test():
                           maxval=params.get('type_vocab_size'),
                           dtype=tf.int32)
 
-    y = tf.random.uniform((n_samples, max_length),
+    y = tf.random.uniform((n_samples,),
                           minval=0,
                           maxval=params.get('type_vocab_size'),
                           dtype=tf.int32)

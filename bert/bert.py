@@ -76,10 +76,11 @@ class Bert(tf.keras.Model):
         self.pooler = tf.keras.layers.Dense(self.pooler_fc_size, name='pooler')
         super(Bert, self).build(input_shape)
 
-    def call(self, inputs, pooler=False):
+    def call(self, inputs, pooler=False, training=None):
         x = inputs
-        x = self.embedding(x)
-        x = self.encoder(x)
+        x = self.embedding(x, training=None)
+        x = self.encoder(x, training=None)
         if pooler:
-            x = self.pooler(x)
+            p = self.pooler(x[:, 0, :])
+            return x, p
         return x
