@@ -59,6 +59,7 @@ def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
             units=self.hidden_size, name='cls/predictions/transform/dense')
         # epsilon is important be same with tf.contrib.layers.layer_norm
         # https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/contrib/layers/python/layers/layers.py
+        # L2174
         self.layer_norm = tf.keras.layers.LayerNormalization(
             epsilon=1e-12,
             name='cls/predictions/transform/LayerNorm')

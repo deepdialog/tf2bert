@@ -4,6 +4,20 @@ from .embedding import BertEmbedding
 from .transformer import TransformerEncoder
 
 
+class Pooler(tf.keras.layers.Layer):
+
+    def __init__(self, pooler_fc_size, **kwargs):
+        self.pooler_fc_size = pooler_fc_size
+        super(Pooler, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.dense = tf.keras.layers.Dense(
+            self.pooler_fc_size, activation='tanh', name='dense')
+
+    def call(self, inputs):
+        return self.dense(inputs)
+
+
 class Bert(tf.keras.Model):
     """
     Bert of TF2
@@ -62,7 +76,8 @@ class Bert(tf.keras.Model):
             hidden_size=self.hidden_size,
             hidden_dropout_prob=self.hidden_dropout_prob,
             initializer_range=self.initializer_range,
-            max_position_embeddings=self.max_position_embeddings)
+            max_position_embeddings=self.max_position_embeddings,
+            name='bert/embeddings')
         # Run multiple transformer layers
         self.encoder = TransformerEncoder(
             num_hidden_layers=self.num_hidden_layers,
@@ -72,10 +87,10 @@ class Bert(tf.keras.Model):
             hidden_act=self.hidden_act,
             initializer_range=self.initializer_range,
             hidden_dropout_prob=self.hidden_dropout_prob,
-            attention_probs_dropout_prob=self.attention_probs_dropout_prob)
-        self.pooler = tf.keras.layers.Dense(
-            self.pooler_fc_size,
-            activation='tanh',
+            attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            name='bert/encoder')
+        self.pooler = Pooler(
+            pooler_fc_size=self.pooler_fc_size,
             name='pooler')
         super(Bert, self).build(input_shape)
 

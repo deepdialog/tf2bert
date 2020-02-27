@@ -55,6 +55,7 @@ class BertEmbedding(tf.keras.layers.Layer):
 
         # epsilon is important be same with tf.contrib.layers.layer_norm
         # https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/contrib/layers/python/layers/layers.py
+        # L2174
         self.layer_norm_layer = tf.keras.layers.LayerNormalization(
             epsilon=1e-12,
             name="LayerNorm")

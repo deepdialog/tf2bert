@@ -31,6 +31,7 @@ class Projection(tf.keras.layers.Layer):
         self.dropout = tf.keras.layers.Dropout(rate=self.hidden_dropout_prob)
         # epsilon is important be same with tf.contrib.layers.layer_norm
         # https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/contrib/layers/python/layers/layers.py
+        # L2174
         self.layer_norm = tf.keras.layers.LayerNormalization(
             epsilon=1e-12, name="LayerNorm")
 
@@ -118,7 +119,7 @@ class SingleTransformerEncoder(tf.keras.layers.Layer):
             name="attention")
 
         self.intermediate_layer = tf.keras.layers.Dense(
-            name="intermediate",
+            name="intermediate/dense",
             units=self.intermediate_size,
             activation=get_activation(self.hidden_act),
             kernel_initializer=tf.keras.initializers.TruncatedNormal(
