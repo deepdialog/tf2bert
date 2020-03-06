@@ -2,7 +2,9 @@ import tensorflow as tf
 from bert.embedding import BertEmbedding
 
 
-def test():
+def test(dtype='float32'):
+
+    tf.keras.backend.set_floatx(dtype)
 
     params = {
         'vocab_size': 1000,
@@ -32,3 +34,4 @@ def test():
 
 if __name__ == "__main__":
     test()
+    test('float16')

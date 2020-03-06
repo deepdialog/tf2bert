@@ -23,7 +23,9 @@ def build_model():
     return model
 
 
-def test():
+def test(dtype='float32'):
+
+    tf.keras.backend.set_floatx(dtype)
 
     n_samples = 320
     max_length = 20
@@ -56,3 +58,4 @@ def test():
 
 if __name__ == "__main__":
     test()
+    test('float16')

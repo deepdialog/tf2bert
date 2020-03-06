@@ -37,17 +37,51 @@ def build_model(params):
     model = tf.keras.Model(inputs=[input_ids, input_ids_type],
                            outputs=[pred_out, pool_out])
 
-    schedule = tf.optimizers.schedules.PolynomialDecay(
-        initial_learning_rate=1e-4, end_learning_rate=1e-6, decay_steps=25000)
-    model.compile(loss=sparse_loss,
-                  optimizer=tfa.optimizers.AdamW(
-                      weight_decay=1e-2,
-                      learning_rate=schedule,
-                      beta_1=0.9,
-                      beta_2=0.999,
-                      epsilon=1e-06,
-                  ))
     return model, bert_model
+
+
+@tf.function
+def train_step(model, optimizer, batch):
+    batch_len = tf.constant(len(batch), dtype=tf.keras.backend.floatx())
+    batch_grad = []
+    accum_grad = {}
+    for (x0, x1), (y0, y1) in batch:
+        with tf.GradientTape() as tape0, tf.GradientTape() as tape1:
+            p0, p1 = model([x0, x1], training=True)
+            loss0 = sparse_loss(y0, p0)
+            loss1 = sparse_loss(y1, p1)
+
+        loss0 /= batch_len
+        loss1 /= batch_len
+
+        pred_var = [
+            x for x in model.trainable_variables
+            if 'pool' not in x.name
+        ]
+        pool_var = [
+            x for x in model.trainable_variables
+            if 'predictions' not in x.name
+        ]
+        grad0 = tape0.gradient(loss0, pred_var)
+        grad1 = tape1.gradient(loss1, pool_var)
+        for grad, var in zip(grad0 + grad1, pred_var + pool_var):
+            if grad is None:
+                continue
+            name = var.name
+            if 'embeddings' in name:
+                batch_grad.append((grad, var))
+            else:
+                if name not in accum_grad:
+                    accum_grad[name] = [grad, var]
+                else:
+                    accum_grad[name] = [
+                        grad + accum_grad[name][0],
+                        var
+                    ]
+    for x, y in accum_grad.values():
+        batch_grad.append((x, y))
+    optimizer.apply_gradients(batch_grad)
+    return loss0, loss1
 
 
 def test():
@@ -80,17 +114,39 @@ def test():
     yt = tf.data.Dataset.from_tensor_slices(ytr)
 
     data = tf.data.Dataset.zip(((x, t), (y, yt)))
-    data = data.batch(32)
+    data = data.batch(4)
 
     model, bert_model = build_model(params)
-    model.fit(data)
 
-    print('save')
-    model.save('/tmp/model', include_optimizer=False)
-    bert_model.save('/tmp/bert', include_optimizer=False)
-    print('load')
-    m2 = tf.keras.models.load_model('/tmp/bert')
-    print(m2([xr[:1], tr[:1]]))
+    schedule = tf.optimizers.schedules.PolynomialDecay(
+        initial_learning_rate=1e-4, end_learning_rate=1e-6, decay_steps=25000)
+
+    optimizer = tfa.optimizers.AdamW(
+        weight_decay=1e-2,
+        learning_rate=schedule,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-06,
+    )
+
+    batch = []
+    for x in data:
+        batch.append(x)
+        if len(batch) == 4:
+            loss0, loss1 = train_step(model, optimizer, batch)
+            loss0 = loss0.numpy()
+            loss1 = loss1.numpy()
+            print(loss0, loss1)
+            batch = []
+
+    # model.fit(data)
+
+    # print('save')
+    # model.save('/tmp/model', include_optimizer=False)
+    # bert_model.save('/tmp/bert', include_optimizer=False)
+    # print('load')
+    # m2 = tf.keras.models.load_model('/tmp/bert')
+    # print(m2([xr[:1], tr[:1]]))
 
 
 if __name__ == "__main__":

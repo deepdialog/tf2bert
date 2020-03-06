@@ -19,7 +19,7 @@ hidden_size = params.get('hidden_size')
 x = tf.random.uniform((batch_size, max_length, hidden_size),
                       minval=0,
                       maxval=1,
-                      dtype=tf.float32)
+                      dtype=tf.keras.backend.floatx())
 
 tsa = TransformerEncoder(**params)
 print(tsa(x).shape)

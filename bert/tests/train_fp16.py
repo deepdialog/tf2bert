@@ -7,6 +7,7 @@ from bert.bert_model import BertModel
 
 
 def loss(one_hot_labels, log_probs):
+    log_probs = tf.cast(log_probs, one_hot_labels.dtype)
     per_example_loss = -tf.reduce_sum(log_probs * one_hot_labels,
                                       axis=[-1])
     return tf.reduce_mean(per_example_loss)
@@ -51,6 +52,8 @@ def build_model(params):
 
 
 def test():
+
+    tf.keras.backend.set_floatx('float16')
 
     n_samples = 320
     max_length = 20

@@ -25,8 +25,9 @@ class Attention(tf.keras.layers.Layer):
         """
 
         mask = tf.cast(tf.expand_dims(input_mask, axis=1),
-                       tf.float32)  # [B, 1, T]
-        ones = tf.expand_dims(tf.ones(shape=from_shape[:2], dtype=tf.float32),
+                       tf.keras.backend.floatx())  # [B, 1, T]
+        ones = tf.expand_dims(tf.ones(shape=from_shape[:2],
+                                      dtype=tf.keras.backend.floatx()),
                               axis=-1)  # [B, F, 1]
         mask = ones * mask  # broadcast along two dimensions
 
@@ -109,15 +110,16 @@ class Attention(tf.keras.layers.Layer):
 
         attention_scores = tf.matmul(query, key,
                                      transpose_b=True)  # [B, N, F, T]
-        attention_scores = attention_scores / tf.sqrt(float(
-            self.size_per_head))
+        size_per_head = tf.constant(self.size_per_head,
+                                    dtype=tf.keras.backend.floatx())
+        attention_scores = attention_scores / tf.sqrt(size_per_head)
 
         if attention_mask is not None:
             attention_mask = tf.expand_dims(attention_mask,
                                             axis=1)  # [B, 1, F, T]
             # {1, 0} -> {0.0, -inf}
-            adder = (1.0 - tf.cast(attention_mask,
-                                   tf.float32)) * self.negative_infinity
+            adder = (1.0 - tf.cast(attention_mask, tf.keras.backend.floatx())
+                     ) * self.negative_infinity
             attention_scores = tf.add(
                 attention_scores,
                 adder)  # adding to softmax -> its like removing them entirely
