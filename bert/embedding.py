@@ -21,16 +21,17 @@ class BertEmbedding(tf.keras.layers.Layer):
         super(BertEmbedding, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        if isinstance(input_shape, list):
-            assert len(input_shape) == 2
-            input_ids_shape, token_type_ids_shape = input_shape
-            self.input_spec = [
-                tf.keras.layers.InputSpec(shape=input_ids_shape),
-                tf.keras.layers.InputSpec(shape=token_type_ids_shape)
-            ]
-        else:
-            input_ids_shape = input_shape
-            self.input_spec = tf.keras.layers.InputSpec(shape=input_ids_shape)
+        # if isinstance(input_shape, list):
+        #     assert len(input_shape) == 2
+        #     input_ids_shape, token_type_ids_shape = input_shape
+        #     self.input_spec = [
+        #         tf.keras.layers.InputSpec(shape=input_ids_shape),
+        #         tf.keras.layers.InputSpec(shape=token_type_ids_shape),
+        #     ]
+        # else:
+        #     input_ids_shape = input_shape
+        #     self.input_spec = tf.keras.layers.InputSpec(
+        #         shape=input_ids_shape)
 
         self.word_embeddings = self.add_weight(
             name="word_embeddings",
@@ -64,16 +65,17 @@ class BertEmbedding(tf.keras.layers.Layer):
 
         super(BertEmbedding, self).build(input_shape)
 
-    def call(self, inputs, mask=None, training=None):
-        input_ids, token_type_ids = inputs
+    def call(self, inputs, training=None):
+        input_ids, segment_ids = inputs
+
         input_ids = tf.cast(input_ids, dtype=tf.int32)
 
         embedding_output = tf.nn.embedding_lookup(
             self.word_embeddings, input_ids)
 
-        token_type_ids = tf.cast(token_type_ids, dtype=tf.int32)
+        segment_ids = tf.cast(segment_ids, dtype=tf.int32)
         embedding_output += tf.nn.embedding_lookup(
-            self.token_type_embeddings, token_type_ids)
+            self.token_type_embeddings, segment_ids)
 
         shape = tf.shape(input_ids)
         embedding_output = tf.concat([
@@ -81,15 +83,9 @@ class BertEmbedding(tf.keras.layers.Layer):
             tf.expand_dims(self.position_embeddings[:shape[1]], 0),
             embedding_output[:, self.max_position_embeddings:, :]
         ], axis=1)
-        # embedding_output += tf.expand_dims(
-        #     self.position_embeddings[:shape[1]], 0)
 
         embedding_output = self.layer_norm_layer(embedding_output)
         embedding_output = self.dropout_layer(embedding_output,
                                               training=training)
 
         return embedding_output  # [B, seq_len, hidden_size]
-
-    def compute_mask(self, inputs, mask=None):
-        input_ids, token_type_ids = inputs
-        return tf.not_equal(input_ids, 0)

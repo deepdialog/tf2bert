@@ -4,10 +4,23 @@ from .bert import Bert as BertLayer
 
 
 def BertModel(**kwargs):
-    input_ids = tf.keras.layers.Input(shape=(None, ), dtype=tf.int32)
-    input_ids_type = tf.keras.layers.Input(shape=(None, ), dtype=tf.int32)
-    pred, pool = BertLayer(**kwargs)([input_ids, input_ids_type], pooler=True)
+    input_ids = tf.keras.layers.Input(
+        shape=(None, ),
+        name='input_ids',
+        dtype=tf.int32
+    )
+    segment_ids = tf.keras.layers.Input(
+        shape=(None, ),
+        name='segment_ids',
+        dtype=tf.int32
+    )
+    input_mask = tf.keras.layers.Input(
+        shape=(None, ),
+        name='input_mask',
+        dtype=tf.int32
+    )
+    out = BertLayer(**kwargs)([input_ids, segment_ids, input_mask])
     model = tf.keras.Model(
-        inputs=[input_ids, input_ids_type],
-        outputs=[pred, pool])
+        inputs=[input_ids, segment_ids, input_mask],
+        outputs=out)
     return model

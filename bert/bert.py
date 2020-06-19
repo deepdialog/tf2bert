@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from .embedding import BertEmbedding
 from .transformer import TransformerEncoder
+from .pred import Pred
 
 
 class Pooler(tf.keras.layers.Layer):
@@ -91,14 +92,30 @@ class Bert(tf.keras.Model):
             name='bert/encoder')
         self.pooler = Pooler(
             pooler_fc_size=self.pooler_fc_size,
-            name='pooler')
+            name='bert/pooler')
+        self.pred = Pred(
+            hidden_size=self.hidden_size,
+            vocab_size=self.vocab_size,
+            hidden_act=self.hidden_act,
+            name='cls/predictions'
+        )
         super(Bert, self).build(input_shape)
 
-    def call(self, inputs, pooler=False, training=None):
-        x = inputs
-        x = self.embedding(x, training=None)
-        x = self.encoder(x, training=None)
-        if pooler:
-            p = self.pooler(x[:, 0, :])
-            return x, p
-        return x
+    def call(self, inputs, training=None):
+        input_ids, segment_ids, mask = inputs
+        emb = self.embedding(
+            [input_ids, segment_ids], training=training)
+        encoder_output = self.encoder(emb, mask=mask, training=training)
+
+        pool = self.pooler(encoder_output[:, 0, :])
+
+        emb = tf.identity(self.embedding.word_embeddings)
+        pred = self.pred([encoder_output, emb])
+
+        ret = {
+            'sequence_output': encoder_output,
+            'pooled_output': pool,
+            'pred_output': pred
+        }
+
+        return ret

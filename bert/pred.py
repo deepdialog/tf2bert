@@ -1,6 +1,7 @@
 import tensorflow as tf
 
-from .similarity import Similarity
+from .utils import get_activation
+# from .similarity import Similarity
 
 
 class Pred(tf.keras.Model):
@@ -50,25 +51,38 @@ def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
   return (loss, per_example_loss, log_probs)
     '''
 
-    def __init__(self, hidden_size, **kwargs):
+    def __init__(self, hidden_size, vocab_size, hidden_act, **kwargs):
         self.hidden_size = hidden_size
+        self.vocab_size = vocab_size
+        self.hidden_act = hidden_act
         super(Pred, self).__init__(**kwargs)
 
     def build(self, input_shape):
         self.dense = tf.keras.layers.Dense(
-            units=self.hidden_size, name='cls/predictions/transform/dense')
+            units=self.hidden_size,
+            activation=get_activation(self.hidden_act),
+            name='transform/dense')
         # epsilon is important be same with tf.contrib.layers.layer_norm
         # https://github.com/tensorflow/tensorflow/blob/r1.8/tensorflow/contrib/layers/python/layers/layers.py
         # L2174
         self.layer_norm = tf.keras.layers.LayerNormalization(
             epsilon=1e-12,
-            name='cls/predictions/transform/LayerNorm')
-        self.similarity = Similarity()
+            name='transform/LayerNorm')
+        self.output_bias = self.add_weight(
+            name='output_bias',
+            shape=(self.vocab_size, ),
+            dtype=tf.keras.backend.floatx(),
+            initializer='zeros')
+
+    def similarity(self, input_tensor, embeddings):
+        x = tf.matmul(input_tensor, embeddings, transpose_b=True)
+        x = tf.nn.bias_add(x, self.output_bias)
+        return x
 
     def call(self, inputs):
         x, embedding = inputs
         x = self.dense(x)
         x = self.layer_norm(x)
-        x = self.similarity([x, embedding])
-        x = tf.nn.log_softmax(x)
+        x = self.similarity(x, embedding)
+        x = tf.nn.log_softmax(x, axis=-1)
         return x

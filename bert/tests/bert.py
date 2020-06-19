@@ -19,7 +19,7 @@ def test():
                               dtype=tf.int32)
 
         # import pdb; pdb.set_trace()
-        print(bert([x, t], pooler=True).shape)
+        print(bert([x, t]).shape)
     # print(len(bert.weights))
     # for x in bert.weights:
     #     print(x.name)

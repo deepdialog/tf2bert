@@ -13,7 +13,7 @@ def build_model():
 
     x = input_ids
     t = input_ids_type
-    _, x = bert([x, t], pooler=True)
+    x = bert([x, t])['pooled_output']
     x = pool(x)
     model = tf.keras.Model(inputs=[input_ids, input_ids_type], outputs=x)
     model.compile(
