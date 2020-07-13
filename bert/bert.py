@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import tensorflow as tf
 
 from .embedding import BertEmbedding
@@ -17,6 +19,34 @@ class Pooler(tf.keras.layers.Layer):
 
     def call(self, inputs):
         return self.dense(inputs)
+
+
+class SeqRelationship(tf.keras.Model):
+    def __init__(self, hidden_size, type_vocab_size,
+                 initializer_range, **kwargs):
+        self.hidden_size = hidden_size
+        self.type_vocab_size = type_vocab_size
+        self.initializer_range = initializer_range
+        super(SeqRelationship, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        self.seq_relationship_weights = self.add_weight(
+            name='output_weights',
+            shape=(self.type_vocab_size, self.hidden_size),
+            dtype=tf.keras.backend.floatx(),
+            initializer=tf.keras.initializers.TruncatedNormal(
+                stddev=self.initializer_range))
+        self.seq_relationship_bias = self.add_weight(
+            name='output_bias',
+            shape=(self.type_vocab_size, ),
+            dtype=tf.keras.backend.floatx(),
+            initializer='zeros')
+
+    def call(self, inputs):
+        x = inputs
+        x = self.seq_relationship_weights * x
+        x = tf.add(x, tf.reshape(self.seq_relationship_bias, (-1, 1)))
+        return x
 
 
 class Bert(tf.keras.Model):
@@ -48,7 +78,10 @@ class Bert(tf.keras.Model):
                  hidden_dropout_prob, initializer_range,
                  max_position_embeddings, num_hidden_layers,
                  num_attention_heads, intermediate_size, hidden_act,
-                 attention_probs_dropout_prob, pooler_fc_size, **kwargs):
+                 attention_probs_dropout_prob,
+                 pooler_fc_size=None,
+                 embedding_size=None,
+                 shared_layer=False, **kwargs):
 
         self.vocab_size = vocab_size
         self.type_vocab_size = type_vocab_size
@@ -62,6 +95,13 @@ class Bert(tf.keras.Model):
         self.hidden_act = hidden_act
         self.attention_probs_dropout_prob = attention_probs_dropout_prob
         self.pooler_fc_size = pooler_fc_size
+        self.embedding_size = embedding_size
+        self.shared_layer = shared_layer
+
+        if embedding_size is None:
+            self.embedding_size = hidden_size
+        if pooler_fc_size is None:
+            self.pooler_fc_size = hidden_size
 
         self.pooler = None
         super(Bert, self).__init__(**kwargs)
@@ -74,7 +114,7 @@ class Bert(tf.keras.Model):
         self.embedding = BertEmbedding(
             vocab_size=self.vocab_size,
             type_vocab_size=self.type_vocab_size,
-            hidden_size=self.hidden_size,
+            embedding_size=self.embedding_size,
             hidden_dropout_prob=self.hidden_dropout_prob,
             initializer_range=self.initializer_range,
             max_position_embeddings=self.max_position_embeddings,
@@ -83,22 +123,32 @@ class Bert(tf.keras.Model):
         self.encoder = TransformerEncoder(
             num_hidden_layers=self.num_hidden_layers,
             hidden_size=self.hidden_size,
+            embedding_size=self.embedding_size,
             num_attention_heads=self.num_attention_heads,
             intermediate_size=self.intermediate_size,
             hidden_act=self.hidden_act,
             initializer_range=self.initializer_range,
             hidden_dropout_prob=self.hidden_dropout_prob,
             attention_probs_dropout_prob=self.attention_probs_dropout_prob,
+            shared_layer=self.shared_layer,
             name='bert/encoder')
+        # Official use hidden_size but not pooler_fc_size
         self.pooler = Pooler(
-            pooler_fc_size=self.pooler_fc_size,
+            pooler_fc_size=self.hidden_size,
             name='bert/pooler')
         self.pred = Pred(
-            hidden_size=self.hidden_size,
+            hidden_size=self.embedding_size,
             vocab_size=self.vocab_size,
             hidden_act=self.hidden_act,
             name='cls/predictions'
         )
+        self.seq_relationship = SeqRelationship(
+            hidden_size=self.hidden_size,
+            type_vocab_size=self.type_vocab_size,
+            initializer_range=self.initializer_range,
+            name='cls/seq_relationship'
+        )
+
         super(Bert, self).build(input_shape)
 
     def call(self, inputs, training=None):
@@ -108,14 +158,18 @@ class Bert(tf.keras.Model):
         encoder_output = self.encoder(emb, mask=mask, training=training)
 
         pool = self.pooler(encoder_output[:, 0, :])
+        rel = self.seq_relationship(pool)
 
-        emb = tf.identity(self.embedding.word_embeddings)
-        pred = self.pred([encoder_output, emb])
+        emb_vec = tf.identity(self.embedding.word_embeddings)
+        # if self.encoder.embedding_hidden_mapping_in:
+        #     emb_vec = self.encoder.embedding_hidden_mapping_in(emb_vec)
+        pred = self.pred([encoder_output, emb_vec])
 
-        ret = {
-            'sequence_output': encoder_output,
-            'pooled_output': pool,
-            'pred_output': pred
-        }
+        ret = OrderedDict((
+            ('sequence_output', encoder_output),
+            ('pooled_output', pool),
+            ('pred_output', pred),
+            ('seq_relationship', rel)
+        ))
 
         return ret

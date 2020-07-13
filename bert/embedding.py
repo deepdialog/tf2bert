@@ -2,12 +2,12 @@ import tensorflow as tf
 
 
 class BertEmbedding(tf.keras.layers.Layer):
-    def __init__(self, vocab_size, type_vocab_size, hidden_size,
+    def __init__(self, vocab_size, type_vocab_size, embedding_size,
                  hidden_dropout_prob, initializer_range,
                  max_position_embeddings, **kwargs):
         self.vocab_size = vocab_size
         self.type_vocab_size = type_vocab_size
-        self.hidden_size = hidden_size
+        self.embedding_size = embedding_size
         self.hidden_dropout_prob = hidden_dropout_prob
         self.initializer_range = initializer_range
         self.max_position_embeddings = max_position_embeddings
@@ -36,21 +36,21 @@ class BertEmbedding(tf.keras.layers.Layer):
         self.word_embeddings = self.add_weight(
             name="word_embeddings",
             dtype=tf.keras.backend.floatx(),
-            shape=[self.vocab_size, self.hidden_size],
+            shape=[self.vocab_size, self.embedding_size],
             initializer=tf.keras.initializers.TruncatedNormal(
                 stddev=self.initializer_range))
 
         self.token_type_embeddings = self.add_weight(
             name="token_type_embeddings",
             dtype=tf.keras.backend.floatx(),
-            shape=[self.type_vocab_size, self.hidden_size],
+            shape=[self.type_vocab_size, self.embedding_size],
             initializer=tf.keras.initializers.TruncatedNormal(
                 stddev=self.initializer_range))
 
         self.position_embeddings = self.add_weight(
             name="position_embeddings",
             dtype=tf.keras.backend.floatx(),
-            shape=[self.max_position_embeddings, self.hidden_size],
+            shape=[self.max_position_embeddings, self.embedding_size],
             initializer=tf.keras.initializers.TruncatedNormal(
                 stddev=self.initializer_range))
 
@@ -88,4 +88,4 @@ class BertEmbedding(tf.keras.layers.Layer):
         embedding_output = self.dropout_layer(embedding_output,
                                               training=training)
 
-        return embedding_output  # [B, seq_len, hidden_size]
+        return embedding_output  # [B, seq_len, embedding_size]

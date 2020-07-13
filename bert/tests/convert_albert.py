@@ -5,7 +5,7 @@ import argparse
 import json
 import tensorflow as tf
 
-from bert import BertModel, params
+from bert import BertModel, albert_params as params
 
 
 class BertToken2ids(tf.keras.models.Model):
@@ -17,11 +17,9 @@ class BertToken2ids(tf.keras.models.Model):
         self.keys = tf.constant(list(word_index.keys()), dtype=tf.string)
         self.values = tf.constant(list(word_index.values()), dtype=tf.int32)
         self.table_init = tf.lookup.KeyValueTensorInitializer(
-            self.keys,
-            self.values)
+            self.keys, self.values)
         self.table = tf.lookup.StaticHashTable(
-            self.table_init,
-            tf.constant(word_index['[UNK]']))  # default value
+            self.table_init, tf.constant(word_index['[UNK]']))  # default value
 
     @tf.function(
         input_signature=[tf.TensorSpec(shape=(None, None), dtype=tf.string)],
@@ -36,12 +34,11 @@ class BertToken2ids(tf.keras.models.Model):
 
 
 class BERT(tf.keras.Model):
-
-    def __init__(self, model_path, num_hidden_layers=None, **kwargs):
+    def __init__(self, model_path, **kwargs):
         super(BERT, self).__init__(**kwargs)
 
-        self.bert = load_model(model_path, num_hidden_layers=num_hidden_layers)
-        word_index = load_vocab(os.path.join(model_path, 'vocab.txt'))
+        self.bert = load_model(model_path)
+        word_index = load_vocab(os.path.join(model_path, 'vocab_chinese.txt'))
         self.tokenizer = BertToken2ids(word_index)
 
         self.make_type_ids = tf.keras.layers.Lambda(
@@ -83,17 +80,15 @@ def load_vocab(vocab_path):
     return word_index
 
 
-def load_model(model_path, num_hidden_layers=None):
+def load_model(model_path):
     ckpt_reader = tf.train.load_checkpoint(
-        os.path.join(model_path, 'bert_model.ckpt'))
-    config = json.load(open(os.path.join(model_path, 'bert_config.json')))
+        os.path.join(model_path, 'model.ckpt-best'))
+    config_file = [x for x in os.listdir(model_path) if x.endswith('.json')][0]
+    config = json.load(open(os.path.join(model_path, config_file)))
 
     loaded_params = {k: config[k] for k in params.keys()}
-    # import pdb; pdb.set_trace()
-    if num_hidden_layers is not None and num_hidden_layers > 0:
-        loaded_params['num_hidden_layers'] = num_hidden_layers
 
-    tfbert = BertModel(**loaded_params)
+    tfbert = BertModel(shared_layer=True, **loaded_params)
 
     tfbert_weights = {w.name: w for w in tfbert.weights}
     official_weights = set(ckpt_reader.get_variable_to_dtype_map().keys())
@@ -130,31 +125,21 @@ def load_model(model_path, num_hidden_layers=None):
 def main():
     parser = argparse.ArgumentParser(
         description='convert official tf1 bert model to tf2')
-    parser.add_argument(
-        '--input',
-        required=True,
-        type=str,
-        help='input tf1 bert dir')
-    parser.add_argument(
-        '--output',
-        required=True,
-        type=str,
-        help='output tf2 bert dir')
-    parser.add_argument(
-        '--num_hidden_layers',
-        type=int,
-        default=0,
-        help='num_hidden_layers to keep, default all (0)'
-    )
+    parser.add_argument('--input',
+                        required=True,
+                        type=str,
+                        help='input tf1 bert dir')
+    parser.add_argument('--output',
+                        required=True,
+                        type=str,
+                        help='output tf2 bert dir')
     args = parser.parse_args()
 
     model_path = args.input
-    bert = BERT(model_path, args.num_hidden_layers)
-    bert._set_inputs(
-        tf.keras.backend.placeholder((None, None), dtype='string'))
-    bert.save(
-        args.output,
-        include_optimizer=False)
+    bert = BERT(model_path)
+    bert._set_inputs(tf.keras.backend.placeholder((None, None),
+                                                  dtype='string'))
+    bert.save(args.output, include_optimizer=False)
 
 
 main()
