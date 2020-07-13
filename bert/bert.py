@@ -44,8 +44,10 @@ class SeqRelationship(tf.keras.Model):
 
     def call(self, inputs):
         x = inputs
-        x = self.seq_relationship_weights * x
-        x = tf.add(x, tf.reshape(self.seq_relationship_bias, (-1, 1)))
+
+        x = tf.matmul(x, self.seq_relationship_weights, transpose_b=True)
+        x = tf.nn.bias_add(x, self.seq_relationship_bias)
+
         return x
 
 

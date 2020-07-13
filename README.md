@@ -10,3 +10,7 @@ MIT LICENSE
 ```bash
 $ python -m bert.tests.convert_official --input=bert_input --output=bert_output
 ```
+
+```
+mkdir -p ../bert_zip && for i in ./* ; do cd $i && tar czf ../../bert_zip/$i.tar.gz . && cd .. ; done;
+```

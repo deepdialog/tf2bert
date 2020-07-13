@@ -20,6 +20,6 @@ python -m bert.tests.convert_albert \
         --input="../bert-embs/pretrained/albert_xlarge/" \
         --output="../../bert/albert_xlarge/"
 
-python -m bert.tests.convert_albert \
-        --input="../bert-embs/pretrained/albert_xxlarge/" \
-        --output="../../bert/albert_xxlarge/"
+# python -m bert.tests.convert_albert \
+#         --input="../bert-embs/pretrained/albert_xxlarge/" \
+#         --output="../../bert/albert_xxlarge/"
