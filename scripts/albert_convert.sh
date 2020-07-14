@@ -6,7 +6,18 @@
 # https://storage.googleapis.com/albert_models/albert_xlarge_zh.tar.gz
 # https://storage.googleapis.com/albert_models/albert_xxlarge_zh.tar.gz
 
+# https://storage.googleapis.com/albert_zh/albert_tiny_zh_google.zip
+# https://storage.googleapis.com/albert_zh/albert_small_zh_google.zip
+
 set -e
+
+python -m bert.tests.convert_albert \
+        --input="../bert-embs/pretrained/albert_tiny/" \
+        --output="../../bert/albert_tiny/"
+
+python -m bert.tests.convert_albert \
+        --input="../bert-embs/pretrained/albert_small/" \
+        --output="../../bert/albert_small/"
 
 python -m bert.tests.convert_albert \
         --input="../bert-embs/pretrained/albert_base/" \
