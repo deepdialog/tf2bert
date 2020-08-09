@@ -22,7 +22,7 @@ if not ON_RTD:
 else:
     INSTALL_REQUIRES = []
 
-VERSION = '0.1.4'
+VERSION = '0.2.0'
 
 setup(
     name='tfbert',
