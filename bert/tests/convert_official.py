@@ -37,13 +37,15 @@ class BertToken2ids(tf.keras.models.Model):
 
 class BERT(tf.keras.Model):
 
-    def __init__(self, model_path, num_hidden_layers=None, **kwargs):
+    def __init__(self,
+                 model_path,
+                 word_index,
+                 load_model,
+                 num_hidden_layers=None, **kwargs):
         super(BERT, self).__init__(**kwargs)
 
         self.bert = load_model(model_path, num_hidden_layers=num_hidden_layers)
-        word_index = load_vocab(os.path.join(model_path, 'vocab.txt'))
         self.tokenizer = BertToken2ids(word_index)
-
         self.make_type_ids = tf.keras.layers.Lambda(
             lambda x: tf.zeros(shape=tf.shape(x), dtype=tf.int32),
             name='make_type_ids')
@@ -53,23 +55,72 @@ class BERT(tf.keras.Model):
             lambda x: tf.cast(tf.math.greater_equal(x, 0), tf.int32),
             name='make_mask')
 
-    @tf.function(
-        input_signature=[tf.TensorSpec(shape=(None, None), dtype=tf.string)],
-        experimental_relax_shapes=True)
-    def call(self, input_str):
-        input_ids = self.tokenizer(input_str)
-        segment_ids = self.make_type_ids(input_ids)
-        input_mask = self.make_mask(input_ids)
-        input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
+    @tf.function
+    def call_ids_mask_type(self, input_ids, input_mask, token_type_ids):
         output = self.bert({
             'input_ids': input_ids,
-            'segment_ids': segment_ids,
+            'token_type_ids': token_type_ids,
             'input_mask': input_mask
         })
         output_mask = tf.cast(input_mask, tf.float32)
         output_mask = tf.expand_dims(output_mask, -1)
         output['sequence_output'] = output['sequence_output'] * output_mask
         return output
+
+    @tf.function
+    def call_ids_mask(self, input_ids, input_mask):
+        token_type_ids = self.make_type_ids(input_ids)
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call_ids_type(self, input_ids, token_type_ids):
+        input_mask = self.make_mask(input_ids)
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call_ids(self, input_ids):
+        token_type_ids = self.make_type_ids(input_ids)
+        input_mask = self.make_mask(input_ids)
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call_strs_mask_type(self, input_strs, input_mask, token_type_ids):
+        input_ids = self.tokenizer(input_strs)
+        input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call_strs_mask(self, input_strs, input_mask):
+        input_ids = self.tokenizer(input_strs)
+        token_type_ids = self.make_type_ids(input_ids)
+        input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call_strs_type(self, input_strs, token_type_ids):
+        input_ids = self.tokenizer(input_strs)
+        input_mask = self.make_mask(input_ids)
+        input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call_strs(self, input_strs):
+        input_ids = self.tokenizer(input_strs)
+        token_type_ids = self.make_type_ids(input_ids)
+        input_mask = self.make_mask(input_ids)
+        input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
+        return self.call_ids_mask_type(
+            input_ids, input_mask, token_type_ids)
+
+    @tf.function
+    def call(self, input_str):
+        return self.call_strs(input_str)
 
 
 def load_vocab(vocab_path):
@@ -149,12 +200,62 @@ def main():
     args = parser.parse_args()
 
     model_path = args.input
-    bert = BERT(model_path, args.num_hidden_layers)
-    bert._set_inputs(
-        tf.keras.backend.placeholder((None, None), dtype='string'))
-    bert.save(
-        args.output,
-        include_optimizer=False)
+    word_index = load_vocab(os.path.join(model_path, 'vocab.txt'))
+    bert = BERT(model_path, word_index, load_model, args.num_hidden_layers)
+
+    print('save to', model_path)
+
+    strs = tf.TensorSpec(shape=[None, None],
+                         dtype=tf.string,
+                         name="input_strs")
+    ids = tf.TensorSpec(shape=[None, None],
+                        dtype=tf.int32,
+                        name="input_ids")
+    mask = tf.TensorSpec(shape=[None, None],
+                         dtype=tf.int32,
+                         name="input_mask")
+    ttids = tf.TensorSpec(shape=[None, None],
+                          dtype=tf.int32,
+                          name="token_type_ids")
+
+    tf.saved_model.save(bert, args.output, signatures={
+        'serving_default': bert.call.get_concrete_function(
+            strs
+        ),
+
+        'ids_mask_type': bert.call_ids_mask_type.get_concrete_function(
+            ids, mask, ttids
+        ),
+
+        'ids_mask': bert.call_ids_mask.get_concrete_function(
+            ids, mask
+        ),
+
+        'ids_type': bert.call_ids_type.get_concrete_function(
+            ids, ttids
+        ),
+
+        'ids': bert.call_ids.get_concrete_function(
+            ids
+        ),
+
+        'strs_mask_type': bert.call_strs_mask_type.get_concrete_function(
+            strs, mask, ttids
+        ),
+
+        'strs_mask': bert.call_strs_mask.get_concrete_function(
+            strs, mask
+        ),
+
+        'strs_type': bert.call_strs_type.get_concrete_function(
+            strs, ttids
+        ),
+
+        'strs': bert.call_strs.get_concrete_function(
+            strs
+        ),
+    })
 
 
-main()
+if __name__ == "__main__":
+    main()

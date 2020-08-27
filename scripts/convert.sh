@@ -34,7 +34,7 @@ python -m bert.tests.convert_official \
 #         --num_hidden_layers=$i
 # done
 
-# for i in {1,3,6,9,12}; do
+# for i in {1,3,6,9}; do
 #     echo $i
 #     python -m bert.tests.convert_official \
 #         --input="../bert-embs/pretrained/chinese_roberta_wwm_ext_L-12_H-768_A-12" \

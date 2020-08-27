@@ -154,9 +154,9 @@ class Bert(tf.keras.Model):
         super(Bert, self).build(input_shape)
 
     def call(self, inputs, training=None):
-        input_ids, segment_ids, mask = inputs
+        input_ids, token_type_ids, mask = inputs
         emb = self.embedding(
-            [input_ids, segment_ids], training=training)
+            [input_ids, token_type_ids], training=training)
         encoder_output = self.encoder(emb, mask=mask, training=training)
 
         pool = self.pooler(encoder_output[:, 0, :])

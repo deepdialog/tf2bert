@@ -41,7 +41,7 @@ tf.keras.backend.batch_set_value(weight_tuples)
 
 def test(ids, ids_types, mask):
     official_ret = bert_layer({
-        'segment_ids': ids_types,
+        'token_type_ids': ids_types,
         'input_mask': mask,
         'input_ids': ids
     })
@@ -49,7 +49,7 @@ def test(ids, ids_types, mask):
     official_seq_ret = official_ret['sequence_output']
 
     tfbert_ret = tfbert({
-        'segment_ids': ids_types,
+        'token_type_ids': ids_types,
         'input_mask': mask,
         'input_ids': ids
     })

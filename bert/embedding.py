@@ -66,16 +66,16 @@ class BertEmbedding(tf.keras.layers.Layer):
         super(BertEmbedding, self).build(input_shape)
 
     def call(self, inputs, training=None):
-        input_ids, segment_ids = inputs
+        input_ids, token_type_ids = inputs
 
         input_ids = tf.cast(input_ids, dtype=tf.int32)
 
         embedding_output = tf.nn.embedding_lookup(
             self.word_embeddings, input_ids)
 
-        segment_ids = tf.cast(segment_ids, dtype=tf.int32)
+        token_type_ids = tf.cast(token_type_ids, dtype=tf.int32)
         embedding_output += tf.nn.embedding_lookup(
-            self.token_type_embeddings, segment_ids)
+            self.token_type_embeddings, token_type_ids)
 
         shape = tf.shape(input_ids)
         embedding_output = tf.concat([
