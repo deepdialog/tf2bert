@@ -79,7 +79,7 @@ def main():
     word_index = load_vocab(os.path.join(model_path, 'vocab_chinese.txt'))
     bert = BERT(model_path, word_index, load_model)
 
-    print('save to', model_path)
+    print('save to', args.output)
 
     strs = tf.TensorSpec(shape=[None, None],
                          dtype=tf.string,

@@ -23,9 +23,6 @@ class BertToken2ids(tf.keras.models.Model):
             self.table_init,
             tf.constant(word_index['[UNK]']))  # default value
 
-    @tf.function(
-        input_signature=[tf.TensorSpec(shape=(None, None), dtype=tf.string)],
-        experimental_relax_shapes=True)
     def call(self, inputs):
         x = inputs
         x = self.table.lookup(x)
@@ -33,6 +30,22 @@ class BertToken2ids(tf.keras.models.Model):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+@tf.function
+def make_strs_type_ids(input_strs):
+    x = input_strs
+    x = tf.cast(x == tf.constant('[SEP]'), tf.int32)
+    x = tf.cast(tf.cumsum(x, axis=1, exclusive=True) > 0, tf.int32)
+    return x
+
+
+@tf.function
+def make_ids_type_ids(input_ids, sep_id):
+    x = input_ids
+    x = tf.cast(x == tf.constant(sep_id), tf.int32)
+    x = tf.cast(tf.cumsum(x, axis=1, exclusive=True) > 0, tf.int32)
+    return x
 
 
 class BERT(tf.keras.Model):
@@ -46,9 +59,13 @@ class BERT(tf.keras.Model):
 
         self.bert = load_model(model_path, num_hidden_layers=num_hidden_layers)
         self.tokenizer = BertToken2ids(word_index)
-        self.make_type_ids = tf.keras.layers.Lambda(
-            lambda x: tf.zeros(shape=tf.shape(x), dtype=tf.int32),
-            name='make_type_ids')
+        # self.sep_id = word_index['[SEP]']
+        self.make_strs_type_ids = tf.keras.layers.Lambda(
+            make_strs_type_ids,
+            name='make_strs_type_ids')
+        self.make_ids_type_ids = tf.keras.layers.Lambda(
+            lambda x: make_ids_type_ids(x, 102),
+            name='make_ids_type_ids')
         self.make_mask = tf.keras.layers.Lambda(
             # >= 0 的才是有效的
             # -1 是token2id的长度填充
@@ -69,7 +86,7 @@ class BERT(tf.keras.Model):
 
     @tf.function
     def call_ids_mask(self, input_ids, input_mask):
-        token_type_ids = self.make_type_ids(input_ids)
+        token_type_ids = self.make_ids_type_ids(input_ids)
         return self.call_ids_mask_type(
             input_ids, input_mask, token_type_ids)
 
@@ -81,7 +98,7 @@ class BERT(tf.keras.Model):
 
     @tf.function
     def call_ids(self, input_ids):
-        token_type_ids = self.make_type_ids(input_ids)
+        token_type_ids = self.make_ids_type_ids(input_ids)
         input_mask = self.make_mask(input_ids)
         return self.call_ids_mask_type(
             input_ids, input_mask, token_type_ids)
@@ -96,7 +113,7 @@ class BERT(tf.keras.Model):
     @tf.function
     def call_strs_mask(self, input_strs, input_mask):
         input_ids = self.tokenizer(input_strs)
-        token_type_ids = self.make_type_ids(input_ids)
+        token_type_ids = self.make_strs_type_ids(input_strs)
         input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
         return self.call_ids_mask_type(
             input_ids, input_mask, token_type_ids)
@@ -112,7 +129,7 @@ class BERT(tf.keras.Model):
     @tf.function
     def call_strs(self, input_strs):
         input_ids = self.tokenizer(input_strs)
-        token_type_ids = self.make_type_ids(input_ids)
+        token_type_ids = self.make_strs_type_ids(input_strs)
         input_mask = self.make_mask(input_ids)
         input_ids = tf.math.abs(input_ids)  # 去掉-1的填充
         return self.call_ids_mask_type(
@@ -203,7 +220,7 @@ def main():
     word_index = load_vocab(os.path.join(model_path, 'vocab.txt'))
     bert = BERT(model_path, word_index, load_model, args.num_hidden_layers)
 
-    print('save to', model_path)
+    print('save to', args.output)
 
     strs = tf.TensorSpec(shape=[None, None],
                          dtype=tf.string,
