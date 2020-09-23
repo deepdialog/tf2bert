@@ -6,18 +6,7 @@ import json
 import tensorflow as tf
 
 from bert import BertModel, albert_params as params
-from bert.tests.convert_official import BERT
-
-
-def load_vocab(vocab_path):
-    word_index = {}
-    with open(vocab_path) as fp:
-        for i, line in enumerate(fp):
-            line = line.strip()  # .lower()
-            word_index[line] = i
-    word_index[''] = -1  # real padding
-    # index_word = {v: k for k, v in word_index.items()}
-    return word_index
+from bert.tests.convert_official import BERT, load_vocab
 
 
 def load_model(model_path, num_hidden_layers=None):
@@ -29,16 +18,32 @@ def load_model(model_path, num_hidden_layers=None):
     loaded_params = {k: config[k] for k in params.keys()}
 
     tfbert = BertModel(shared_layer=True, **loaded_params)
+    tfbert([
+        tf.constant([[1]]),
+        tf.constant([[1]]),
+        tf.constant([[1]])
+    ])
 
     tfbert_weights = {w.name: w for w in tfbert.weights}
     official_weights = set(ckpt_reader.get_variable_to_dtype_map().keys())
+
+    skip_tensor = [
+        'cls/predictions/transform/dense/kernel',
+        'cls/seq_relationship/output_weights',
+        'cls/predictions/transform/LayerNorm/beta',
+        'cls/predictions/output_bias',
+        'cls/predictions/transform/LayerNorm/gamma',
+        'cls/seq_relationship/output_bias',
+        'cls/predictions/transform/dense/bias',
+    ]
 
     good = True
     for x in official_weights - set([x.split(':')[0]
                                      for x in tfbert_weights.keys()]):
         if 'adam' not in x and 'global_step' not in x:
-            print('diff offi', x)
-            good = False
+            if x not in skip_tensor:
+                print('diff offi', x)
+                good = False
 
     for x in set([x.split(':')[0]
                   for x in tfbert_weights.keys()]) - official_weights:
@@ -84,53 +89,9 @@ def main():
     strs = tf.TensorSpec(shape=[None, None],
                          dtype=tf.string,
                          name="input_strs")
-    ids = tf.TensorSpec(shape=[None, None],
-                        dtype=tf.int32,
-                        name="input_ids")
-    mask = tf.TensorSpec(shape=[None, None],
-                         dtype=tf.int32,
-                         name="input_mask")
-    ttids = tf.TensorSpec(shape=[None, None],
-                          dtype=tf.int32,
-                          name="token_type_ids")
 
-    tf.saved_model.save(bert, args.output, signatures={
-        'serving_default': bert.call.get_concrete_function(
-            strs
-        ),
-
-        'ids_mask_type': bert.call_ids_mask_type.get_concrete_function(
-            ids, mask, ttids
-        ),
-
-        'ids_mask': bert.call_ids_mask.get_concrete_function(
-            ids, mask
-        ),
-
-        'ids_type': bert.call_ids_type.get_concrete_function(
-            ids, ttids
-        ),
-
-        'ids': bert.call_ids.get_concrete_function(
-            ids
-        ),
-
-        'strs_mask_type': bert.call_strs_mask_type.get_concrete_function(
-            strs, mask, ttids
-        ),
-
-        'strs_mask': bert.call_strs_mask.get_concrete_function(
-            strs, mask
-        ),
-
-        'strs_type': bert.call_strs_type.get_concrete_function(
-            strs, ttids
-        ),
-
-        'strs': bert.call_strs.get_concrete_function(
-            strs
-        ),
-    })
+    bert._set_inputs(strs)
+    bert.save(args.output)
 
 
 if __name__ == "__main__":

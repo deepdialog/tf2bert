@@ -12,25 +12,25 @@
 set -e
 
 python -m bert.tests.convert_albert \
-        --input="../bert-embs/pretrained/albert_tiny/" \
+        --input="../pretrained/albert_tiny/" \
         --output="../../bert/albert_tiny/"
 
 python -m bert.tests.convert_albert \
-        --input="../bert-embs/pretrained/albert_small/" \
+        --input="../pretrained/albert_small/" \
         --output="../../bert/albert_small/"
 
 python -m bert.tests.convert_albert \
-        --input="../bert-embs/pretrained/albert_base/" \
+        --input="../pretrained/albert_base/" \
         --output="../../bert/albert_base/"
 
 python -m bert.tests.convert_albert \
-        --input="../bert-embs/pretrained/albert_large/" \
+        --input="../pretrained/albert_large/" \
         --output="../../bert/albert_large/"
 
 python -m bert.tests.convert_albert \
-        --input="../bert-embs/pretrained/albert_xlarge/" \
+        --input="../pretrained/albert_xlarge/" \
         --output="../../bert/albert_xlarge/"
 
-# python -m bert.tests.convert_albert \
-#         --input="../bert-embs/pretrained/albert_xxlarge/" \
-#         --output="../../bert/albert_xxlarge/"
+python -m bert.tests.convert_albert \
+        --input="../pretrained/albert_xxlarge/" \
+        --output="../../bert/albert_xxlarge/"

@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from .embedding import BertEmbedding
 from .transformer import TransformerEncoder
-from .pred import Pred
+# from .pred import Pred
 
 
 class Pooler(tf.keras.layers.Layer):
@@ -138,18 +138,19 @@ class Bert(tf.keras.Model):
         self.pooler = Pooler(
             pooler_fc_size=self.hidden_size,
             name='bert/pooler')
-        self.pred = Pred(
-            hidden_size=self.embedding_size,
-            vocab_size=self.vocab_size,
-            hidden_act=self.hidden_act,
-            name='cls/predictions'
-        )
-        self.seq_relationship = SeqRelationship(
-            hidden_size=self.hidden_size,
-            type_vocab_size=self.type_vocab_size,
-            initializer_range=self.initializer_range,
-            name='cls/seq_relationship'
-        )
+
+        # self.pred = Pred(
+        #     hidden_size=self.embedding_size,
+        #     vocab_size=self.vocab_size,
+        #     hidden_act=self.hidden_act,
+        #     name='cls/predictions'
+        # )
+        # self.seq_relationship = SeqRelationship(
+        #     hidden_size=self.hidden_size,
+        #     type_vocab_size=self.type_vocab_size,
+        #     initializer_range=self.initializer_range,
+        #     name='cls/seq_relationship'
+        # )
 
         super(Bert, self).build(input_shape)
 
@@ -160,18 +161,18 @@ class Bert(tf.keras.Model):
         encoder_output = self.encoder(emb, mask=mask, training=training)
 
         pool = self.pooler(encoder_output[:, 0, :])
-        rel = self.seq_relationship(pool)
+        # rel = self.seq_relationship(pool)
 
-        emb_vec = tf.identity(self.embedding.word_embeddings)
+        # emb_vec = tf.identity(self.embedding.word_embeddings)
         # if self.encoder.embedding_hidden_mapping_in:
         #     emb_vec = self.encoder.embedding_hidden_mapping_in(emb_vec)
-        pred = self.pred([encoder_output, emb_vec])
+        # pred = self.pred([encoder_output, emb_vec])
 
         ret = OrderedDict((
             ('sequence_output', encoder_output),
             ('pooled_output', pool),
-            ('pred_output', pred),
-            ('seq_relationship', rel)
+            # ('pred_output', pred),
+            # ('seq_relationship', rel)
         ))
 
         return ret
