@@ -40,23 +40,22 @@ albert_params = {
     "vocab_size": 21128
 }
 
-# For CI testing only
 params_small = {
     "attention_probs_dropout_prob": 0.1,
     # "directionality": "bidi",
     "hidden_act": "gelu",
     "hidden_dropout_prob": 0.1,
-    "hidden_size": 64,
+    "hidden_size": 512,
     "initializer_range": 0.02,
-    "intermediate_size": 128 * 4,
-    "max_position_embeddings": 64,
+    "intermediate_size": 512 * 4,
+    "max_position_embeddings": 512,
     "num_attention_heads": 4,
-    "num_hidden_layers": 2,
-    "pooler_fc_size": 64,
+    "num_hidden_layers": 4,
+    "pooler_fc_size": 512,
     # "pooler_num_attention_heads": 12,
     # "pooler_num_fc_layers": 3,
     # "pooler_size_per_head": 128,
     # "pooler_type": "first_token_transform",
     "type_vocab_size": 2,
-    "vocab_size": 64
+    "vocab_size": 21128
 }

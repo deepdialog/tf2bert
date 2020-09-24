@@ -4,7 +4,7 @@ import tensorflow as tf
 
 from .embedding import BertEmbedding
 from .transformer import TransformerEncoder
-# from .pred import Pred
+from .pred import Pred
 
 
 class Pooler(tf.keras.layers.Layer):
@@ -83,7 +83,9 @@ class Bert(tf.keras.Model):
                  attention_probs_dropout_prob,
                  pooler_fc_size=None,
                  embedding_size=None,
-                 shared_layer=False, **kwargs):
+                 shared_layer=False,
+                 use_pred=False,
+                 use_seq_relationship=False, **kwargs):
 
         self.vocab_size = vocab_size
         self.type_vocab_size = type_vocab_size
@@ -99,6 +101,8 @@ class Bert(tf.keras.Model):
         self.pooler_fc_size = pooler_fc_size
         self.embedding_size = embedding_size
         self.shared_layer = shared_layer
+        self.use_pred = use_pred
+        self.use_seq_relationship = use_seq_relationship
 
         if embedding_size is None:
             self.embedding_size = hidden_size
@@ -139,18 +143,20 @@ class Bert(tf.keras.Model):
             pooler_fc_size=self.hidden_size,
             name='bert/pooler')
 
-        # self.pred = Pred(
-        #     hidden_size=self.embedding_size,
-        #     vocab_size=self.vocab_size,
-        #     hidden_act=self.hidden_act,
-        #     name='cls/predictions'
-        # )
-        # self.seq_relationship = SeqRelationship(
-        #     hidden_size=self.hidden_size,
-        #     type_vocab_size=self.type_vocab_size,
-        #     initializer_range=self.initializer_range,
-        #     name='cls/seq_relationship'
-        # )
+        if self.use_pred:
+            self.pred = Pred(
+                hidden_size=self.embedding_size,
+                vocab_size=self.vocab_size,
+                hidden_act=self.hidden_act,
+                name='cls/predictions'
+            )
+        if self.use_seq_relationship:
+            self.seq_relationship = SeqRelationship(
+                hidden_size=self.hidden_size,
+                type_vocab_size=self.type_vocab_size,
+                initializer_range=self.initializer_range,
+                name='cls/seq_relationship'
+            )
 
         super(Bert, self).build(input_shape)
 
@@ -163,16 +169,21 @@ class Bert(tf.keras.Model):
         pool = self.pooler(encoder_output[:, 0, :])
         # rel = self.seq_relationship(pool)
 
-        # emb_vec = tf.identity(self.embedding.word_embeddings)
-        # if self.encoder.embedding_hidden_mapping_in:
-        #     emb_vec = self.encoder.embedding_hidden_mapping_in(emb_vec)
-        # pred = self.pred([encoder_output, emb_vec])
-
         ret = OrderedDict((
             ('sequence_output', encoder_output),
             ('pooled_output', pool),
             # ('pred_output', pred),
             # ('seq_relationship', rel)
         ))
+
+        if self.pred:
+            emb_vec = tf.identity(self.embedding.word_embeddings)
+            if self.encoder.embedding_hidden_mapping_in:
+                emb_vec = self.encoder.embedding_hidden_mapping_in(emb_vec)
+            pred = self.pred([encoder_output, emb_vec])
+            ret['pred_output'] = pred
+        if self.use_seq_relationship:
+            rel = self.seq_relationship(pool)
+            ret['seq_relationship'] = rel
 
         return ret
