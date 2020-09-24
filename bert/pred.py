@@ -84,5 +84,5 @@ def get_masked_lm_output(bert_config, input_tensor, output_weights, positions,
         x = self.dense(x)
         x = self.layer_norm(x)
         x = self.similarity(x, embedding)
-        x = tf.nn.log_softmax(x, axis=-1)
+        # x = tf.nn.log_softmax(x, axis=-1)
         return x

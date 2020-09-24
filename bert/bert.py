@@ -173,7 +173,7 @@ class Bert(tf.keras.Model):
             ('sequence_output', encoder_output),
             ('pooled_output', pool),
             # ('pred_output', pred),
-            # ('seq_relationship', rel)
+            # ('seq_relationship_output', rel)
         ))
 
         if self.pred:
@@ -184,6 +184,6 @@ class Bert(tf.keras.Model):
             ret['pred_output'] = pred
         if self.use_seq_relationship:
             rel = self.seq_relationship(pool)
-            ret['seq_relationship'] = rel
+            ret['seq_relationship_output'] = rel
 
         return ret
