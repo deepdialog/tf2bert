@@ -78,11 +78,8 @@ class BertEmbedding(tf.keras.layers.Layer):
             self.token_type_embeddings, token_type_ids)
 
         shape = tf.shape(input_ids)
-        embedding_output = tf.concat([
-            embedding_output[:, :self.max_position_embeddings, :] +
-            tf.expand_dims(self.position_embeddings[:shape[1]], 0),
-            embedding_output[:, self.max_position_embeddings:, :]
-        ], axis=1)
+        embedding_output += tf.expand_dims(
+            self.position_embeddings[:shape[1]], 0)
 
         embedding_output = self.layer_norm_layer(embedding_output)
         embedding_output = self.dropout_layer(embedding_output,
