@@ -16,7 +16,7 @@ python -m bert.tests.convert_official \
     
 python -m bert.tests.convert_official \
     --input="../pretrained/chinese_roberta_wwm_large_ext_L-24_H-1024_A-16" \
-    --output="../../bert/zh-roberta-wwm-large-L24"
+    --output="../../bert/roberta_wwm_large"
 
 # for i in {1,3,6,9,12}; do
 #     echo $i

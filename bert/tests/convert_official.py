@@ -36,7 +36,7 @@ class BertToken2ids(tf.keras.models.Model):
 def make_strs_type_ids(input_strs):
     x = input_strs
     x = tf.cast(x == tf.constant('[SEP]'), tf.int32)
-    x = tf.cast(tf.cumsum(x, axis=1, exclusive=True) > 0, tf.int32)
+    x = tf.cast(tf.cumsum(x, axis=1, exclusive=True) % 2, tf.int32)
     return x
 
 
@@ -44,7 +44,7 @@ def make_strs_type_ids(input_strs):
 def make_ids_type_ids(input_ids, sep_id=102):
     x = input_ids
     x = tf.cast(x == tf.constant(sep_id), tf.int32)
-    x = tf.cast(tf.cumsum(x, axis=1, exclusive=True) > 0, tf.int32)
+    x = tf.cast(tf.cumsum(x, axis=1, exclusive=True) % 2, tf.int32)
     return x
 
 
