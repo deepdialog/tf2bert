@@ -176,7 +176,7 @@ class Bert(tf.keras.Model):
             # ('seq_relationship_output', rel)
         ))
 
-        if self.pred:
+        if self.use_pred:
             emb_vec = tf.identity(self.embedding.word_embeddings)
             if self.encoder.embedding_hidden_mapping_in:
                 emb_vec = self.encoder.embedding_hidden_mapping_in(emb_vec)
