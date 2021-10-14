@@ -108,8 +108,10 @@ class Attention(tf.keras.layers.Layer):
         query = transpose_for_scores(query, from_seq_len)  # [B, N, F, H]
         key = transpose_for_scores(key, to_seq_len)  # [B, N, T, H]
 
-        attention_scores = tf.matmul(query, key,
-                                     transpose_b=True)  # [B, N, F, T]
+        attention_scores = tf.cast(
+            tf.matmul(query, key, transpose_b=True),  # [B, N, F, T]
+            tf.keras.backend.floatx()
+        )
         size_per_head = tf.constant(self.size_per_head,
                                     dtype=tf.keras.backend.floatx())
         attention_scores = attention_scores / tf.sqrt(size_per_head)
